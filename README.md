@@ -44,4 +44,4 @@ Back-end: FastAPI / Flask
 
 Front-end: React / Vue.js
 
-Libraries: PyMuPDF, ReportLab
+Libraries: PyMuPDF, ReportLab .
