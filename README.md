@@ -1,125 +1,74 @@
-# PDF Signature Service — v2.0 (Production-Ready)
+# 📂 Pomelo PDF Signer
 
-Upload a PDF → place a visual signature at precise coordinates → download the signed file.
+An advanced, secure, and containerized web application designed for interactive, coordinate-based digital signature placement on PDF documents. Built with a modern Python backend architecture and a responsive React canvas overlay frontend.
 
-## Project structure
+---
 
-```
-pdf-signature-service/
-├── app/
-│   ├── main.py                  # FastAPI factory, middleware, global exc. handlers
-│   ├── core/
-│   │   ├── config.py            # pydantic-settings (PDFSIGN_* env vars / .env)
-│   │   ├── exceptions.py        # domain exception hierarchy (AppError subclasses)
-│   │   ├── models.py            # Pydantic request/response schemas
-│   │   └── validators.py        # magic-byte file-type predicates (pure functions)
-│   ├── services/
-│   │   ├── file_service.py      # async streaming upload, size + magic validation
-│   │   ├── pdf_service.py       # PyMuPDF: page inspection, signature embedding
-│   │   └── storage_service.py   # task-scoped temp directory lifecycle
-│   └── routers/
-│       └── pdf.py               # HTTP: /upload, /sign, /download/{task_id}
-├── tests/
-│   ├── unit/
-│   │   └── test_validators_and_exceptions.py
-│   └── integration/
-│       └── test_api.py          # FastAPI TestClient, services mocked via DI
-├── tmp/                         # gitignored working directory for task files
-├── requirements.txt
-├── requirements-dev.txt
-└── pyproject.toml
-```
+## 🚀 Key Features
 
-## Architecture decisions
+* **Interactive Canvas Overlay:** Smooth drag-and-drop web interface allowing users to visually place signatures precisely where they want them on the document.
+* **Coordinate-Based Signature Placement:** Precision backend processing engine that calculates exact pixel offsets to burn signatures permanently into the PDF structure.
+* **Robust Schema Validation:** Powered by **Pydantic v2** for secure type casting, bulletproof input sanitization, and structured API error handling.
+* **Modern Python Backend:** Clean, modular, and fast API routing structure keeping frontend components and low-level PDF manipulation services separated.
+* **Production-Ready Containerization:** Fully dockerized environment (`Docker-compose`) ensuring consistent developer and deployment setups across any OS.
+* **Comprehensive Swagger UI Integration:** Built-in API documentation for seamless endpoint testing and route verification.
 
-| Layer | Responsibility | What it does NOT do |
-|---|---|---|
-| `routers/` | HTTP in → HTTP out | No business logic |
-| `services/` | Business logic | No FastAPI imports |
-| `core/` | Shared contracts | No I/O |
+---
 
-**Domain exceptions** live in `core/exceptions.py`. Every `AppError` subclass
-carries `http_status` so the router can translate without knowing HTTP details.
-The router calls `_raise_http(err)` which produces a clean `HTTPException`.
+## 🛠️ Technical Tech Stack
 
-**Dependency injection** via FastAPI `Depends()` makes every service
-swappable in tests — override `get_pdf_service()` with a mock and the
-router tests run without PyMuPDF installed.
+| Layer | Technologies Used |
+| :--- | :--- |
+| **Backend Core** | Python, FastAPI / Framework Architecture |
+| **Data Validation** | Pydantic v2 |
+| **Frontend UI** | HTML5 Canvas, React, Modern CSS Frameworks |
+| **DevOps & Infrastructure** | Docker, Docker-compose |
+| **API Testing** | Swagger UI |
 
-## Running locally
+---
 
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+## 📦 Project Structure
 
-Swagger UI: http://localhost:8000/docs
+```text
+pomelo-pdf-signer/
+├── app/                  # Python core backend logic & routes
+├── frontend/             # Interactive Canvas overlay interface
+├── tests/                # Quality Assurance simulation & endpoint tests
+├── Dockerfile            # Container definition for the app service
+├── docker-compose.yml    # Multi-container orchestration config
+└── README.md             # Project documentation
+⚙️ Quick Start Guide (Local Setup)
+Follow these simple steps to spin up the entire application environment locally using Docker.
 
-## Configuration
+1. Prerequisites
+Make sure you have Docker and Docker Compose installed on your system.
 
-All settings are overridable via environment variables prefixed `PDFSIGN_`:
+2. Clone the Repository
+Bash
+git clone [https://github.com/codcreater1/pomelo-pdf-signer.git](https://github.com/codcreater1/pomelo-pdf-signer.git)
+cd pomelo-pdf-signer
+3. Spin Up the Containers
+Run the following command in the root directory to automatically fetch dependencies, configure networks, and launch both frontend and backend environments:
 
-| Variable | Default | Description |
-|---|---|---|
-| `PDFSIGN_MAX_PDF_BYTES` | `15728640` (15 MB) | Max PDF upload size |
-| `PDFSIGN_MAX_IMAGE_BYTES` | `5242880` (5 MB) | Max signature image size |
-| `PDFSIGN_STORAGE_ROOT` | `./tmp` | Working directory for tasks |
-| `PDFSIGN_TASK_TTL_SECONDS` | `3600` | Orphan cleanup age (startup) |
-| `PDFSIGN_CORS_ORIGINS` | `["*"]` | Tighten in production |
-| `PDFSIGN_API_SECRET_KEY` | `""` | Bearer token (empty = disabled) |
+Bash
+docker-compose up --build
+4. Access the Application
+Once the build is complete and the logs indicate running servers:
 
-## Running tests
+Frontend Web Interface: Open http://localhost:3000 (or your assigned frontend port)
 
-```bash
-pip install -r requirements-dev.txt
-pytest
-pytest --cov=app --cov-report=term-missing   # with coverage
-```
+Interactive API Docs (Swagger UI): Open http://localhost:8000/docs to test endpoints manually.
 
-## API reference
+🤝 Team & Contributors
+This system was collaboratively architected and maintained as a part of our modern software engineering internship/course cycle by the Pomelo Team:
 
-### POST /api/v1/pdf/upload
-Accepts a multipart PDF. Returns `task_id` + page geometry.
+Murat Can Nergiz (codcreater1) - Project Leader / Core Backend & Architecture
 
-```json
-{
-  "task_id": "3f8a2b...",
-  "page_count": 2,
-  "pages": [
-    {"index": 0, "width": 595.0, "height": 842.0},
-    {"index": 1, "width": 595.0, "height": 842.0}
-  ],
-  "upload_size_bytes": 204800
-}
-```
+Arda (ardacodes1) - Core Infrastructure & Logic Development
 
-### POST /api/v1/pdf/sign
-Embeds a signature image. All coordinates in PDF points (1 pt = 1/72 in).
-Origin is page **top-left**; x right, y down.
+Faik Arda (faikarda) - Quality Assurance, Testing & Deployment Verification
 
-**Converting pixel clicks to PDF points:**
-```js
-const x_pt = click_x / canvas_width  * page.width;
-const y_pt = click_y / canvas_height * page.height;
-```
+Eylül (Eylul35536) - Frontend UI Components & Canvas Overlay Design
 
-Form fields: `task_id`, `page` (0-indexed), `x`, `y`, `w`, `h`, `image` (PNG/JPEG).
-
-### GET /api/v1/pdf/download/{task_id}
-Streams `signed.pdf`. Schedules task cleanup after the response is sent
-(single-use semantics).
-
-## Migrating from v1 prototype
-
-The wire format is backward-compatible with one addition: `/upload` now also
-returns `upload_size_bytes`. No endpoint paths changed. The internal module
-layout changed significantly:
-
-| v1 file | v2 equivalent |
-|---|---|
-| `app/processor.py` | `app/services/pdf_service.py` |
-| `app/storage.py` | `app/services/storage_service.py` |
-| `app/validators.py` | `app/core/validators.py` |
-| `app/config.py` | `app/core/config.py` |
-| `app/models.py` | `app/core/models.py` |
-| `app/routers/pdf.py` | `app/routers/pdf.py` (rewritten) |
+📈 Quality Assurance & Code Standards
+Our workflow implements a Mandatory Peer Approval Process. No feature branch is directly merged into main without thorough code reviews, Pydantic structure validations, and multi-user functional testing routines on separate simulation environments.
