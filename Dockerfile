@@ -5,8 +5,10 @@ WORKDIR /src
 # Projenin kök dizindeki her şeyi kopyala
 COPY . .
 
-# Klasör adı Frontend veya frontend olsa da yakala, bağımlılıkları kur ve derle
-RUN if [ -d "frontend" ]; then cd frontend; else cd Frontend; fi && \
+# package.json dosyasının nerede olduğunu bul, o klasöre gir ve derle
+RUN TARGET_DIR=$(find . -name "package.json" -not -path "*/node_modules/*" | head -n 1 | xargs dirname) && \
+    echo "Frontend dizini bulundu: $TARGET_DIR" && \
+    cd "$TARGET_DIR" && \
     npm install && \
     npm run build
 
@@ -27,9 +29,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Kök dizindeki backend kodlarını kopyala
 COPY . .
 
-# Üst aşamada (builder) derlenen dist klasörünü bul ve /app/frontend/dist içine kopyala
-COPY --from=builder /src/frontend/dist ./frontend/dist
-COPY --from=builder /src/Frontend/dist ./frontend/dist
+# builder aşamasında üretilen dist klasörünü bul ve dinamik olarak kopyala
+RUN mkdir -p frontend && \
+    DIST_DIR=$(find /src -type d -name "dist" -not -path "*/node_modules/*" | head -n 1) && \
+    if [ -n "$DIST_DIR" ]; then \
+        cp -r "$DIST_DIR"/* ./frontend/; \
+    fi
 
 EXPOSE 8000
 
