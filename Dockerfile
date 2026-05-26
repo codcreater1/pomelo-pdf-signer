@@ -1,13 +1,14 @@
 # --- 1. AŞAMA: Frontend Build (Node.js) ---
 FROM node:20-slim AS frontend-builder
-WORKDIR /frontend
+WORKDIR /build-dir
 
-# Sadece frontend bağımlılıklarını ve kodlarını kopyalayalım
-COPY frontend/package*.json ./
-RUN npm install
+# Repodaki her şeyi kopyala (Klasör adı büyük de olsa küçük de olsa yakalamak için)
+COPY . .
 
-COPY frontend/ ./
-RUN npm run build
+# Klasörün adını kontrol et, içine gir, package.json'ı bul ve derle
+RUN if [ -d "frontend" ]; then cd frontend; else cd Frontend; fi && \
+    npm install && \
+    npm run build
 
 # --- 2. AŞAMA: Runtime Image (Python & FastAPI) ---
 FROM python:3.12-slim
@@ -26,8 +27,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Tüm backend kodlarını kopyala
 COPY . .
 
-# İlk aşamada üretilen 'dist' klasörünü doğrudan runtime imajına kopyala
-COPY --from=frontend-builder /frontend/dist ./frontend/dist
+# Üretilen dist klasörünü, klasör adına bakmaksızın /app/frontend/dist içine taşıyalım
+RUN mkdir -p frontend && \
+    if [ -d "/build-dir/frontend/dist" ]; then \
+        cp -r /build-dir/frontend/dist/* ./frontend/; \
+    else \
+        cp -r /build-dir/Frontend/dist/* ./frontend/; \
+    fi
 
 EXPOSE 8000
 
