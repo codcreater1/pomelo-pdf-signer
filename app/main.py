@@ -1,23 +1,16 @@
-"""FastAPI application factory.
-
-Responsibilities of this module:
-- Create the FastAPI app and attach middleware.
-- Register the global (last-resort) exception handler.
-- Define the lifespan hook (startup cleanup, future shutdown hooks).
-- Mount routers.
-
-Nothing in this file contains business logic — that lives in services/.
-"""
+"""FastAPI application factory."""
 
 from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -33,33 +26,15 @@ logging.basicConfig(
 logger = logging.getLogger("pdfsign")
 
 
-# ---------------------------------------------------------------------------
-# Lifespan
-# ---------------------------------------------------------------------------
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Startup / shutdown hooks.
-
-    Startup: purge task directories older than TTL (recovers from crashes).
-    Shutdown: intentionally a no-op — live task dirs belong to in-flight
-    downloads; let the OS handle them on next startup via the purge.
-    """
     removed = storage_service.purge_stale(settings.task_ttl_seconds)
     if removed:
         logger.info("Startup: purged %d stale task director(ies).", removed)
     else:
         logger.info("Startup: no stale task directories found.")
-
-    yield  # app runs here
-
+    yield
     logger.info("Shutdown: exiting cleanly.")
-
-
-# ---------------------------------------------------------------------------
-# App factory
-# ---------------------------------------------------------------------------
 
 
 def create_app() -> FastAPI:
@@ -71,13 +46,9 @@ def create_app() -> FastAPI:
             "and download the signed file — all via a clean REST API."
         ),
         lifespan=lifespan,
-        # Disable default /docs redirect; access Swagger at /docs directly.
         redirect_slashes=False,
     )
 
-    # ------------------------------------------------------------------ #
-    # Middleware
-    # ------------------------------------------------------------------ #
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -87,24 +58,12 @@ def create_app() -> FastAPI:
         expose_headers=["Content-Disposition"],
     )
 
-    # ------------------------------------------------------------------ #
-    # Global exception handlers
-    # ------------------------------------------------------------------ #
-
     @app.exception_handler(AppError)
     async def _app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-        """Translate domain AppError subclasses into structured JSON responses.
-
-        Domain exceptions should not reach here in normal operation — the router
-        catches them via _raise_http(). This handler is a safety net for any
-        AppError that escapes the router (e.g. raised inside middleware).
-        """
         logger.warning(
             "Domain error on %s %s: [%s] %s",
-            request.method,
-            request.url.path,
-            type(exc).__name__,
-            exc.detail,
+            request.method, request.url.path,
+            type(exc).__name__, exc.detail,
         )
         return JSONResponse(
             status_code=exc.http_status,
@@ -113,33 +72,22 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Last-resort handler — catches bugs, never leaks tracebacks to clients."""
-        logger.exception(
-            "Unhandled exception on %s %s",
-            request.method,
-            request.url.path,
-        )
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ErrorResponse(detail="Internal server error.").model_dump(),
         )
 
-    # ------------------------------------------------------------------ #
     # Routers
-    # ------------------------------------------------------------------ #
     app.include_router(pdf_router.router, prefix=settings.api_prefix)
 
-    # ------------------------------------------------------------------ #
     # Meta endpoints
-    # ------------------------------------------------------------------ #
-
     @app.get("/healthz", tags=["meta"], summary="Liveness probe.")
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": settings.app_version}
 
     @app.get("/readyz", tags=["meta"], summary="Readiness probe.")
     async def readyz() -> dict[str, str]:
-        """Verify that the storage root is writable before accepting traffic."""
         try:
             probe = settings.storage_root / ".readyz"
             probe.touch()
@@ -151,13 +99,23 @@ def create_app() -> FastAPI:
             )
         return {"status": "ok", "storage": str(settings.storage_root)}
 
-    # Güvenli ana dizin rotası (Çökmeyi önler)
-    @app.get("/")
+    # Frontend — static files
+    frontend_path = Path(__file__).resolve().parent.parent / "frontend"
+    if frontend_path.exists():
+        app.mount(
+            "/static",
+            StaticFiles(directory=str(frontend_path)),
+            name="static",
+        )
+
+    @app.get("/", include_in_schema=False)
     async def root():
-        return {"status": "running", "message": "Backend aktif. Frontend entegrasyonu hazirlaniyor."}
+        index = frontend_path / "index.html"
+        if index.exists():
+            return FileResponse(str(index))
+        return {"status": "running", "message": "Frontend not found."}
 
     return app
 
 
-# Module-level instance used by uvicorn.
 app = create_app()
