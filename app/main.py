@@ -18,6 +18,8 @@ from typing import AsyncIterator
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -96,7 +98,7 @@ def create_app() -> FastAPI:
         """Translate domain AppError subclasses into structured JSON responses.
 
         Domain exceptions should not reach here in normal operation — the router
-        catches them via _raise_http(). This handler is a safety net for any
+         catches them via _raise_http(). This handler is a safety net for any
         AppError that escapes the router (e.g. raised inside middleware).
         """
         logger.warning(
@@ -150,6 +152,15 @@ def create_app() -> FastAPI:
                 content={"status": "error", "detail": str(exc)},
             )
         return {"status": "ok", "storage": str(settings.storage_root)}
+
+    # ------------------------------------------------------------------ #
+    # Frontend Integration
+    # ------------------------------------------------------------------ #
+    app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
+
+    @app.get("/{catchall:path}", include_in_schema=False)
+    async def serve_frontend():
+        return FileResponse("frontend/dist/index.html")
 
     return app
 
