@@ -3,7 +3,8 @@ FROM node:20-slim AS frontend-builder
 WORKDIR /frontend-build
 # Sadece frontend klasörünü içeri al
 COPY frontend/package*.json ./
-RUN npm ci
+# Hata veren 'npm ci' yerine 'npm install' kullanıyoruz
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
@@ -28,4 +29,4 @@ COPY --from=frontend-builder /frontend-build/dist ./frontend/dist
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main.py:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
