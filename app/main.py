@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.models import ErrorResponse
-from app.routers import pdf as pdf_router
+from app.routers import profiles as profiles_router
 from app.services.storage_service import storage_service
 
 logging.basicConfig(
