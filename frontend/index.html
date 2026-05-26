@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Signer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=Dancing+Script:wght@700&family=Pacifico&family=Caveat:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+/* ─────────────── TOKENS ─────────────── */
+:root {
+  --n950:#05080f; --n900:#0a0f1e; --n800:#0f1629;
+  --n700:#162038; --n600:#1e2d4f; --n500:#253766;
+  --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0;
+  --accent:#f59e0b; --accent2:#fbbf24;
+  --green:#10b981; --red:#ef4444;
+  --white:#ffffff;
+  --r-sm:8px; --r-md:14px; --r-lg:20px;
+  --shadow:0 4px 32px rgba(0,0,0,.45);
+  --shadow-glow:0 0 40px rgba(245,158,11,.12);
+  --sidebar-w:220px;
+}
+[data-theme="light"] {
+  --n950:#f8fafc; --n900:#f1f5f9; --n800:#e8edf5;
+  --n700:#d1dae8; --n600:#b0bdd4; --n500:#8496b4;
+  --s400:#4b5e7a;  --s300:#2d3f5c; --s200:#1a2744;
+  --shadow:0 4px 32px rgba(0,0,0,.10);
+}
+
+/* ─────────────── RESET ─────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--n950);color:var(--s300);
+  min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E")}
+button{font-family:'DM Sans',sans-serif;cursor:pointer}
+input{font-family:'DM Sans',sans-serif}
+
+/* ─────────────── PROFILE SCREEN ─────────────── */
+#ps{position:fixed;inset:0;z-index:100;display:flex;align-items:center;
+  justify-content:center;background:var(--n950);
+  background-image:radial-gradient(circle at 50% 0%,var(--n700) 0%,var(--n950) 60%)}
+#ps::before{content:'';position:absolute;inset:0;
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,var(--n700) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,var(--n700) 40px);
+  opacity:.18;pointer-events:none}
+
+.ps-wrap{position:relative;z-index:1;width:100%;max-width:420px;padding:24px}
+
+/* PS logo */
+.ps-logo{text-align:center;margin-bottom:32px}
+.ps-logo-icon{width:64px;height:64px;background:var(--accent);border-radius:18px;
+  display:grid;place-items:center;font-size:30px;margin:0 auto 14px;
+  box-shadow:0 8px 24px rgba(245,158,11,.3)}
+.ps-logo-title{font-family:'DM Serif Display',serif;font-size:28px;color:var(--white);margin-bottom:4px}
+[data-theme="light"] .ps-logo-title{color:var(--s200)}
+.ps-logo-sub{font-size:13px;color:var(--s400)}
+
+/* PS card */
+.ps-card{background:var(--n800);border:1px solid var(--n600);border-radius:var(--r-lg);
+  padding:28px;box-shadow:var(--shadow)}
+.ps-card-label{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--s400);
+  text-transform:uppercase;margin-bottom:14px}
+
+/* Profile list items */
+.profile-item{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-radius:var(--r-sm);border:1px solid var(--n600);background:var(--n700);
+  cursor:pointer;transition:all .2s;margin-bottom:8px}
+.profile-item:hover{border-color:var(--accent);background:var(--n600)}
+.prof-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.prof-name{font-size:14px;font-weight:600;color:var(--s300)}
+.prof-role{font-size:12px;color:var(--s400)}
+.prof-arrow{margin-left:auto;color:var(--s400);font-size:18px}
+
+/* PS divider */
+.ps-divider{display:flex;align-items:center;gap:10px;margin:16px 0;
+  color:var(--s400);font-size:12px}
+.ps-divider::before,.ps-divider::after{content:'';flex:1;height:1px;background:var(--n600)}
+
+/* New profile btn */
+.btn-new-profile{width:100%;padding:12px;border:1px dashed var(--n600);border-radius:var(--r-sm);
+  background:transparent;color:var(--s400);font-size:14px;transition:all .2s}
+.btn-new-profile:hover{border-color:var(--accent);color:var(--accent)}
+
+/* PIN card */
+.pin-card{background:var(--n800);border:1px solid var(--n600);border-radius:var(--r-lg);
+  padding:36px 28px;text-align:center;box-shadow:var(--shadow);max-width:340px;margin:0 auto}
+.pin-avatar{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;
+  font-size:26px;font-weight:700;color:#fff;margin:0 auto 12px;
+  border:3px solid rgba(255,255,255,.15)}
+.pin-username{font-family:'DM Serif Display',serif;font-size:20px;color:var(--white);margin-bottom:4px}
+[data-theme="light"] .pin-username{color:var(--s200)}
+.pin-hint{font-size:13px;color:var(--s400);margin-bottom:20px}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:12px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--n500);
+  background:transparent;transition:all .15s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+.pin-err{font-size:13px;color:var(--red);margin-bottom:12px;animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* PIN pad */
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.pp-btn{padding:16px;border-radius:var(--r-sm);border:1px solid var(--n600);
+  background:var(--n700);color:var(--s300);font-size:18px;font-weight:600;
+  transition:all .15s}
+.pp-btn:hover{background:var(--n600);border-color:var(--accent);color:var(--white)}
+.pp-btn:active{transform:scale(.95)}
+.pp-back{font-size:12px;color:var(--s400)}
+.pp-del{font-size:16px}
+
+/* New profile card */
+.np-card{background:var(--n800);border:1px solid var(--n600);border-radius:var(--r-lg);
+  padding:32px 28px;box-shadow:var(--shadow);max-width:400px;margin:0 auto;width:100%}
+.np-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--white);margin-bottom:6px}
+[data-theme="light"] .np-title{color:var(--s200)}
+.np-sub{font-size:13px;color:var(--s400);margin-bottom:20px}
+.av-color-row{display:flex;gap:10px;margin-bottom:20px}
+.av-color{width:36px;height:36px;border-radius:50%;border:3px solid transparent;
+  transition:all .2s;flex-shrink:0}
+.av-color.selected,.av-color:hover{border-color:var(--white);transform:scale(1.15)}
+.np-field{width:100%;padding:11px 14px;border-radius:var(--r-sm);
+  border:1px solid var(--n600);background:var(--n700);color:var(--s300);
+  font-size:14px;margin-bottom:12px;outline:none;transition:border .2s}
+.np-field:focus{border-color:var(--accent)}
+.np-field::placeholder{color:var(--s400)}
+.np-actions{display:flex;gap:10px;margin-top:8px}
+.btn-ghost-sm{flex:1;padding:11px;border-radius:var(--r-sm);border:1px solid var(--n600);
+  background:transparent;color:var(--s400);font-size:14px;transition:all .2s}
+.btn-ghost-sm:hover{border-color:var(--s400);color:var(--s300)}
+.btn-create{flex:1;padding:11px;border-radius:var(--r-sm);border:none;
+  background:var(--accent);color:#000;font-size:14px;font-weight:600;transition:all .2s}
+.btn-create:hover{background:var(--accent2)}
+
+/* ─────────────── APP LAYOUT ─────────────── */
+#app{display:none;min-height:100vh;position:relative;z-index:1}
+.app-shell{display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{width:var(--sidebar-w);background:var(--n900);border-right:1px solid var(--n700);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
+  z-index:10;transition:background .3s}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:22px 20px 18px;
+  border-bottom:1px solid var(--n700);cursor:pointer;transition:opacity .2s}
+.sb-brand:hover{opacity:.75}
+.sb-brand-icon{width:32px;height:32px;background:var(--accent);border-radius:9px;
+  display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.sb-brand-name{font-family:'DM Serif Display',serif;font-size:17px;color:var(--white)}
+[data-theme="light"] .sb-brand-name{color:var(--s200)}
+
+.sb-user{display:flex;align-items:center;gap:10px;padding:16px 20px;
+  border-bottom:1px solid var(--n700)}
+.sb-av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.sb-uname{font-size:13px;font-weight:600;color:var(--s300)}
+.sb-urole{font-size:11px;color:var(--s400)}
+
+.sb-section{padding:18px 20px 6px;font-size:10px;font-weight:700;
+  letter-spacing:1.2px;color:var(--s400);text-transform:uppercase}
+.sb-nav{padding:0 12px}
+.sb-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:var(--r-sm);color:var(--s400);text-decoration:none;
+  font-size:14px;font-weight:500;transition:all .2s;margin-bottom:2px}
+.sb-nav-item:hover{background:var(--n700);color:var(--s300)}
+.sb-nav-item.active{background:rgba(245,158,11,.12);color:var(--accent)}
+.sb-nav-icon{font-size:16px}
+
+.sb-footer{margin-top:auto;padding:16px 12px;border-top:1px solid var(--n700);
+  display:flex;flex-direction:column;gap:6px}
+.sb-theme-btn,.sb-logout-btn{width:100%;padding:9px 12px;border-radius:var(--r-sm);
+  border:1px solid var(--n600);background:transparent;color:var(--s400);
+  font-size:13px;text-align:left;transition:all .2s}
+.sb-theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sb-logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── Main body ── */
+.app-body{margin-left:var(--sidebar-w);padding:32px 36px 60px;min-height:100vh;
+  max-width:calc(1100px + var(--sidebar-w));width:100%}
+
+.page-header{margin-bottom:28px}
+.page-title{font-family:'DM Serif Display',serif;font-size:30px;color:var(--white);
+  margin-bottom:4px}
+[data-theme="light"] .page-title{color:var(--s200)}
+.page-sub{font-size:14px;color:var(--s400)}
+
+/* ── Step indicator ── */
+.steps-bar{display:flex;align-items:center;margin-bottom:36px}
+.si-step{display:flex;align-items:center;gap:8px}
+.si-step:not(:last-child){flex:1}
+.si-num{width:30px;height:30px;border-radius:50%;border:2px solid var(--n600);
+  display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--s400);
+  transition:all .3s;flex-shrink:0}
+.si-label{font-size:12px;font-weight:500;color:var(--s400);white-space:nowrap;transition:color .3s}
+.si-line{flex:1;height:1px;background:var(--n600);margin:0 12px;transition:background .4s}
+.si-step.active .si-num{border-color:var(--accent);background:var(--accent);color:#000}
+.si-step.active .si-label{color:var(--accent)}
+.si-step.done .si-num{border-color:var(--green);background:var(--green);color:#fff}
+.si-step.done .si-label{color:var(--green)}
+.si-step.done + .si-line{background:var(--accent)}
+
+/* ── Cards ── */
+.card{background:var(--n900);border:1px solid var(--n700);border-radius:var(--r-lg);
+  padding:32px;box-shadow:var(--shadow);animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.card-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--white);margin-bottom:4px}
+[data-theme="light"] .card-title{color:var(--s200)}
+.card-sub{font-size:13px;color:var(--s400);margin-bottom:24px;line-height:1.6}
+
+/* ── Error banner ── */
+.error-banner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+  color:#fca5a5;border-radius:var(--r-sm);padding:13px 16px;font-size:14px;
+  margin-bottom:20px;animation:fadeUp .3s ease}
+
+/* ─────────────── STEP 1 – Upload ─────────────── */
+.method-tabs{display:flex;gap:4px;background:var(--n800);border:1px solid var(--n700);
+  border-radius:var(--r-sm);padding:4px;margin-bottom:20px;width:fit-content}
+.method-tab{padding:8px 18px;border-radius:6px;border:none;background:transparent;
+  color:var(--s400);font-size:13px;font-weight:500;transition:all .2s}
+.method-tab.active{background:var(--n600);color:var(--white)}
+
+/* Filter tabs */
+.filter-tabs{display:flex;gap:6px;margin-bottom:14px}
+.filter-tab{padding:5px 14px;border-radius:99px;border:1px solid var(--n600);
+  background:transparent;color:var(--s400);font-size:12px;font-weight:500;transition:all .2s}
+.filter-tab.active{background:var(--accent);border-color:var(--accent);color:#000}
+
+/* Sticker grid */
+.sticker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:700px){.sticker-grid{grid-template-columns:repeat(2,1fr)}}
+.sk-btn{border:2px solid var(--n600);border-radius:var(--r-sm);padding:12px 8px;
+  background:var(--n800);cursor:pointer;text-align:center;transition:all .2s;
+  display:flex;flex-direction:column;align-items:center;gap:5px}
+.sk-btn:hover{border-color:var(--accent);transform:translateY(-2px)}
+.sk-btn.selected{border-color:var(--accent);background:rgba(245,158,11,.09)}
+.sk-emoji{font-size:22px}
+.sk-label{font-size:10px;font-weight:600;color:var(--s400);letter-spacing:.5px;text-transform:uppercase}
+.selected-preview{display:flex;align-items:center;gap:12px;padding:12px;
+  border:1px solid var(--n600);border-radius:var(--r-sm);background:var(--n800);margin-bottom:16px}
+.prev-label{font-size:12px;color:var(--s400);white-space:nowrap}
+
+/* Dropzone */
+.dropzone{border:2px dashed var(--n600);border-radius:var(--r-md);padding:32px 24px;
+  text-align:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+.dropzone::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,rgba(245,158,11,.04) 0%,transparent 70%);
+  opacity:0;transition:opacity .3s}
+.dropzone:hover,.dropzone.drag-over{border-color:var(--accent);transform:translateY(-2px)}
+.dropzone:hover::before,.dropzone.drag-over::before{opacity:1}
+.dropzone.has-file{border-color:var(--green);border-style:solid}
+.dropzone.has-file::before{background:radial-gradient(ellipse at center,rgba(16,185,129,.06) 0%,transparent 70%);opacity:1}
+.dz-icon{font-size:34px;margin-bottom:10px}
+.dz-label{font-size:14px;font-weight:500;color:var(--s300);margin-bottom:4px}
+.dz-hint{font-size:12px;color:var(--s400);margin-bottom:6px}
+.file-name{font-size:12px;color:var(--green);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;margin:0 auto}
+.pdf-block{margin-top:20px}
+
+/* Main action btn */
+.btn-action{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;
+  border-radius:var(--r-sm);border:none;background:var(--accent);color:#000;
+  font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:20px}
+.btn-action:hover:not(:disabled){background:var(--accent2);transform:translateY(-1px);
+  box-shadow:0 6px 20px rgba(245,158,11,.3)}
+.btn-action:disabled{opacity:.5;cursor:not-allowed}
+
+/* ─────────────── STEP 2 – Editor ─────────────── */
+.editor-layout{display:grid;grid-template-columns:256px 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.editor-layout{grid-template-columns:1fr}}
+
+/* Controls panel */
+.ctrl-panel{background:var(--n800);border:1px solid var(--n700);border-radius:var(--r-md);
+  padding:20px;position:sticky;top:24px}
+.ctrl-panel-title{font-size:11px;font-weight:700;letter-spacing:1px;
+  color:var(--s400);text-transform:uppercase;margin-bottom:16px}
+.ctrl-group{margin-bottom:16px}
+.ctrl-label{display:block;font-size:12px;font-weight:600;color:var(--s400);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.ctrl-select{width:100%;padding:9px 12px;border-radius:var(--r-sm);
+  border:1px solid var(--n600);background:var(--n700);color:var(--s300);
+  font-size:13px;outline:none;transition:border .2s}
+.ctrl-select:focus{border-color:var(--accent)}
+.ctrl-range{width:100%;accent-color:var(--accent);cursor:pointer}
+.color-row{display:flex;gap:8px}
+.c-dot{width:28px;height:28px;border-radius:50%;border:3px solid transparent;
+  transition:all .2s;flex-shrink:0}
+.c-dot:hover{transform:scale(1.15)}
+.c-dot.active{border-color:var(--white);box-shadow:0 0 0 2px var(--accent)}
+.ctrl-divider{height:1px;background:var(--n700);margin:16px 0}
+.hist-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.hist-btn{padding:8px;border-radius:var(--r-sm);border:1px solid var(--n600);
+  background:var(--n700);color:var(--s400);font-size:12px;transition:all .2s}
+.hist-btn:hover{border-color:var(--s400);color:var(--s300)}
+.hist-danger{width:100%;margin-top:0;color:var(--red) !important}
+.hist-danger:hover{border-color:var(--red) !important}
+.page-nav{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.page-btn{padding:8px;border-radius:var(--r-sm);border:1px solid var(--n600);
+  background:var(--n700);color:var(--s400);font-size:13px;transition:all .2s}
+.page-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.page-btn:disabled{opacity:.35;cursor:not-allowed}
+.page-ind{font-size:11px;color:var(--accent);background:rgba(245,158,11,.1);
+  padding:2px 8px;border-radius:99px;margin-left:4px;font-weight:600}
+.btn-sign{width:100%;margin-top:12px;padding:13px;border-radius:var(--r-sm);
+  border:none;background:var(--accent);color:#000;font-size:14px;font-weight:600;
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-sign:hover:not(:disabled){background:var(--accent2);box-shadow:0 6px 20px rgba(245,158,11,.3)}
+.btn-sign:disabled{opacity:.5;cursor:not-allowed}
+
+/* Canvas */
+.canvas-area{width:100%}
+.canvas-tip{font-size:13px;color:var(--s400);margin-bottom:12px;display:flex;gap:6px;align-items:center}
+.canvas-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;
+  border:1px solid var(--n600);background:var(--n800);box-shadow:var(--shadow)}
+#pdf-canvas{display:block;width:100%;height:auto}
+#sig-overlay{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair}
+#sig-overlay.dragging{cursor:grabbing}
+
+/* ─────────────── STEP 3 – Success ─────────────── */
+.success-section{text-align:center;padding:60px 32px}
+.success-emoji{font-size:52px;margin-bottom:16px}
+.success-title{font-family:'DM Serif Display',serif;font-size:32px;color:var(--white);margin-bottom:8px}
+[data-theme="light"] .success-title{color:var(--s200)}
+.success-sub{font-size:15px;color:var(--s400);margin-bottom:32px}
+.btn-download{display:inline-flex;align-items:center;gap:8px;padding:15px 36px;
+  border-radius:var(--r-sm);border:none;background:var(--green);color:#fff;
+  font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.btn-download:hover:not(:disabled){background:#059669;transform:translateY(-1px);
+  box-shadow:0 6px 20px rgba(16,185,129,.3)}
+.btn-download:disabled{opacity:.5;cursor:not-allowed}
+.btn-again{display:block;margin:0 auto;padding:10px 24px;border-radius:var(--r-sm);
+  border:1px solid var(--n600);background:transparent;color:var(--s400);
+  font-size:13px;cursor:pointer;transition:all .2s}
+.btn-again:hover{border-color:var(--s400);color:var(--s300)}
+
+/* spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;
+  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.btn-sign .spinner,.btn-download .spinner{border-color:rgba(255,255,255,.3);border-top-color:#fff}
+
+/* ─────────────── SIDEBAR SIGNED DOCS ─────────────── */
+.sb-signed-list{padding:0 10px;margin-bottom:8px}
+.sb-signed-item{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:var(--r-sm);border:1px solid var(--n700);background:var(--n800);
+  margin-bottom:6px;transition:all .2s;cursor:pointer}
+.sb-signed-item:hover{border-color:var(--accent);background:rgba(245,158,11,.06)}
+.sb-signed-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.sb-signed-name{font-size:11px;font-weight:600;color:var(--s300);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.sb-signed-date{font-size:10px;color:var(--s400);margin-top:1px}
+.sb-signed-empty{font-size:11px;color:var(--s400);padding:6px 10px;font-style:italic}
+.sb-signed-del{font-size:13px;color:var(--s400);flex-shrink:0;padding:2px 4px;
+  border-radius:4px;line-height:1;opacity:0;transition:opacity .15s,color .15s;border:none;
+  background:transparent;cursor:pointer}
+.sb-signed-item:hover .sb-signed-del{opacity:1}
+.sb-signed-del:hover{color:var(--red) !important}
+
+/* ─────────────── DRAW CANVAS ─────────────── */
+.draw-canvas-wrap{border:2px solid var(--n600);border-radius:var(--r-sm);
+  overflow:hidden;background:#fff;margin-bottom:10px;cursor:crosshair}
+#draw-canvas{display:block;width:100%;height:auto;touch-action:none}
+.draw-controls{display:flex;align-items:center;gap:14px}
+.draw-ctrl-btn{padding:7px 16px;border-radius:var(--r-sm);border:1px solid var(--n600);
+  background:var(--n700);color:var(--s400);font-size:13px;cursor:pointer;transition:all .2s}
+.draw-ctrl-btn:hover{border-color:var(--red);color:var(--red)}
+.draw-pen-label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--s400)}
+.draw-color-row{display:flex;gap:7px;align-items:center}
+.draw-c-dot{width:24px;height:24px;border-radius:50%;border:3px solid transparent;
+  transition:all .2s;flex-shrink:0;cursor:pointer}
+.draw-c-dot:hover{transform:scale(1.15)}
+.draw-c-dot.active{border-color:var(--white);box-shadow:0 0 0 2px var(--accent)}
+
+/* placement badge */
+.placement-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;
+  color:var(--green);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);
+  border-radius:99px;padding:4px 12px}
+.pbadge-dot{width:6px;height:6px;background:var(--green);border-radius:50%;
+  animation:pulse 1.5s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+  </style>
+</head>
+<body>
+
+<!-- ─────────────── PROFILE SCREEN ─────────────── -->
+<div id="ps">
+  <div class="ps-wrap">
+
+    <!-- View: select profile -->
+    <div id="v-select">
+      <div class="ps-logo">
+        <div class="ps-logo-icon">📄</div>
+        <h1 class="ps-logo-title">PDF Signer</h1>
+        <p class="ps-logo-sub">Document Signing System</p>
+      </div>
+      <div class="ps-card">
+        <p class="ps-card-label">Select Profile</p>
+        <div id="profile-list"></div>
+        <div class="ps-divider">or</div>
+        <button id="btn-new-profile" class="btn-new-profile">+ Create New Profile</button>
+      </div>
+    </div>
+
+    <!-- View: PIN entry -->
+    <div id="v-pin" style="display:none">
+      <div class="pin-card">
+        <div id="pin-av" class="pin-avatar"></div>
+        <h2 id="pin-uname" class="pin-username"></h2>
+        <p class="pin-hint">Enter your 4-digit PIN</p>
+        <div class="pin-dots">
+          <span class="pin-dot" id="pd-0"></span>
+          <span class="pin-dot" id="pd-1"></span>
+          <span class="pin-dot" id="pd-2"></span>
+          <span class="pin-dot" id="pd-3"></span>
+        </div>
+        <p id="pin-err" class="pin-err" style="display:none">Incorrect PIN. Try again.</p>
+        <div class="pin-pad">
+          <button class="pp-btn" data-d="1">1</button>
+          <button class="pp-btn" data-d="2">2</button>
+          <button class="pp-btn" data-d="3">3</button>
+          <button class="pp-btn" data-d="4">4</button>
+          <button class="pp-btn" data-d="5">5</button>
+          <button class="pp-btn" data-d="6">6</button>
+          <button class="pp-btn" data-d="7">7</button>
+          <button class="pp-btn" data-d="8">8</button>
+          <button class="pp-btn" data-d="9">9</button>
+          <button class="pp-btn pp-back" data-d="back">← Back</button>
+          <button class="pp-btn" data-d="0">0</button>
+          <button class="pp-btn pp-del" data-d="del">⌫</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View: create new profile -->
+    <div id="v-new" style="display:none">
+      <div class="np-card">
+        <h2 class="np-title">Create Profile</h2>
+        <p class="np-sub">Choose a color and fill in your details</p>
+        <div class="av-color-row" id="av-colors">
+          <button class="av-color selected" data-c="#6366f1" style="background:#6366f1"></button>
+          <button class="av-color" data-c="#ec4899" style="background:#ec4899"></button>
+          <button class="av-color" data-c="#f59e0b" style="background:#f59e0b"></button>
+          <button class="av-color" data-c="#10b981" style="background:#10b981"></button>
+          <button class="av-color" data-c="#3b82f6" style="background:#3b82f6"></button>
+          <button class="av-color" data-c="#f97316" style="background:#f97316"></button>
+        </div>
+        <input id="np-name"  class="np-field" type="text"     placeholder="Full name"        maxlength="30" />
+        <input id="np-title" class="np-field" type="text"     placeholder="Title / Role"     maxlength="30" />
+        <input id="np-pin"   class="np-field" type="password" placeholder="4-digit PIN"      maxlength="4" inputmode="numeric" />
+        <p id="np-err" class="pin-err" style="display:none"></p>
+        <div class="np-actions">
+          <button id="btn-cancel-np" class="btn-ghost-sm">Cancel</button>
+          <button id="btn-save-np"   class="btn-create">Create Profile</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────── MAIN APP ─────────────── -->
+<div id="app">
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-brand" id="sb-brand">
+        <div class="sb-brand-icon">📄</div>
+        <span class="sb-brand-name">PDF Signer</span>
+      </div>
+      <div class="sb-user">
+        <div id="sb-av" class="sb-av"></div>
+        <div>
+          <div id="sb-name" class="sb-uname"></div>
+          <div id="sb-role" class="sb-urole"></div>
+        </div>
+      </div>
+      <div class="sb-section">Actions</div>
+      <nav class="sb-nav">
+        <a class="sb-nav-item active" href="#">
+          <span class="sb-nav-icon">✍</span> Sign PDF
+        </a>
+      </nav>
+      <div class="sb-section">Signed Documents</div>
+      <div id="sb-signed-list" class="sb-signed-list">
+        <p class="sb-signed-empty">No documents yet</p>
+      </div>
+      <div class="sb-footer">
+        <button id="btn-theme"  class="sb-theme-btn">☀️ Light Mode</button>
+        <button id="btn-logout" class="sb-logout-btn">⬅ Log out</button>
+      </div>
+    </aside>
+
+    <!-- Body -->
+    <div class="app-body">
+
+      <div id="err-banner" class="error-banner" style="display:none"></div>
+
+      <div class="page-header">
+        <h1 class="page-title">Sign PDF</h1>
+        <p class="page-sub">Upload document, place signature, download signed file</p>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="steps-bar">
+        <div class="si-step active" id="si-1">
+          <div class="si-num">1</div><span class="si-label">Upload Files</span>
+        </div>
+        <div class="si-line"></div>
+        <div class="si-step" id="si-2">
+          <div class="si-num">2</div><span class="si-label">Place Signature</span>
+        </div>
+        <div class="si-line" id="si-line-2"></div>
+        <div class="si-step" id="si-3">
+          <div class="si-num">✓</div><span class="si-label">Download</span>
+        </div>
+      </div>
+
+      <!-- ── STEP 1 ── -->
+      <div id="step-1" class="card">
+        <h2 class="card-title">Select your files</h2>
+        <p class="card-sub">Choose a signature method and upload your PDF to get started.</p>
+
+        <div class="method-tabs">
+          <button id="tab-sticker" class="method-tab active">🎯 Ready Sticker</button>
+          <button id="tab-custom"  class="method-tab">🖼 Custom Image</button>
+          <button id="tab-draw"    class="method-tab">✏️ Draw</button>
+        </div>
+
+        <!-- Sticker panel -->
+        <div id="panel-sticker">
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-f="all">All</button>
+            <button class="filter-tab" data-f="stamp">Stamp</button>
+            <button class="filter-tab" data-f="text">Text</button>
+          </div>
+          <div id="sticker-grid" class="sticker-grid"></div>
+          <div id="selected-preview" class="selected-preview" style="display:none">
+            <span class="prev-label">Selected:</span>
+            <canvas id="prev-canvas" width="220" height="76"></canvas>
+          </div>
+        </div>
+
+        <!-- Custom image panel -->
+        <div id="panel-custom" style="display:none">
+          <div id="sig-dz" class="dropzone" tabindex="0">
+            <div class="dz-icon">✍️</div>
+            <p class="dz-label">Drop signature image or click to browse</p>
+            <p class="dz-hint">PNG or JPEG · Max. 5 MB</p>
+            <p id="sig-fname" class="file-name"></p>
+          </div>
+          <input type="file" id="sig-input" accept="image/png,image/jpeg" hidden />
+        </div>
+
+        <!-- Draw panel -->
+        <div id="panel-draw" style="display:none">
+          <p style="font-size:13px;color:var(--s400);margin-bottom:10px">
+            ✏️ Draw your signature below with your mouse or finger.
+          </p>
+          <div class="draw-canvas-wrap">
+            <canvas id="draw-canvas" width="700" height="180"></canvas>
+          </div>
+          <div class="draw-controls">
+            <button id="btn-clear-draw" class="draw-ctrl-btn">🗑 Clear</button>
+
+            <!-- Pen thickness -->
+            <label class="draw-pen-label">
+              <span>Size: <strong id="pen-val">3</strong></span>
+              <input type="range" id="pen-size" min="1" max="15" value="3" class="ctrl-range" style="width:90px">
+            </label>
+
+            <!-- Pen color -->
+            <div class="draw-color-row" id="draw-color-row">
+              <button class="draw-c-dot active" data-c="#1e293b" style="background:#1e293b" title="Black"></button>
+              <button class="draw-c-dot"        data-c="#1d4ed8" style="background:#1d4ed8" title="Blue"></button>
+              <button class="draw-c-dot"        data-c="#dc2626" style="background:#dc2626" title="Red"></button>
+              <button class="draw-c-dot"        data-c="#16a34a" style="background:#16a34a" title="Green"></button>
+              <button class="draw-c-dot"        data-c="#7c3aed" style="background:#7c3aed" title="Purple"></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF upload -->
+        <div class="pdf-block">
+          <div id="pdf-dz" class="dropzone" tabindex="0">
+            <div class="dz-icon">📄</div>
+            <p class="dz-label">Drop PDF here or click to browse</p>
+            <p class="dz-hint">Max. 15 MB · PDF only</p>
+            <p id="pdf-fname" class="file-name"></p>
+          </div>
+          <input type="file" id="pdf-input" accept="application/pdf" hidden />
+        </div>
+
+        <button id="upload-btn" class="btn-action">Upload &amp; Preview →</button>
+      </div>
+
+      <!-- ── STEP 2 ── -->
+      <div id="step-2" class="card" style="display:none;padding:24px">
+        <div class="editor-layout">
+
+          <!-- Controls -->
+          <div class="ctrl-panel">
+            <p class="ctrl-panel-title">Signature Settings</p>
+
+            <div class="ctrl-group" id="ctrl-font">
+              <label class="ctrl-label">Font Style</label>
+              <select id="sig-font" class="ctrl-select" onchange="onFontChange(this.value)">
+                <option value="Dancing Script">Dancing Script</option>
+                <option value="Pacifico">Pacifico</option>
+                <option value="Caveat">Caveat</option>
+                <option value="DM Sans">DM Sans (Clean)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group" id="ctrl-color">
+              <label class="ctrl-label">Color</label>
+              <div class="color-row">
+                <button class="c-dot active" data-c="#1e293b" style="background:#1e293b" title="Black"  onclick="onColorClick(this)"></button>
+                <button class="c-dot"        data-c="#1d4ed8" style="background:#1d4ed8" title="Blue"   onclick="onColorClick(this)"></button>
+                <button class="c-dot"        data-c="#dc2626" style="background:#dc2626" title="Red"    onclick="onColorClick(this)"></button>
+                <button class="c-dot"        data-c="#16a34a" style="background:#16a34a" title="Green"  onclick="onColorClick(this)"></button>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <label class="ctrl-label">Width – <span id="size-val">220</span>px</label>
+              <input type="range" id="sig-size" min="80" max="400" value="220" class="ctrl-range" />
+            </div>
+
+            <div class="ctrl-divider"></div>
+
+            <div class="ctrl-group">
+              <label class="ctrl-label">History</label>
+              <div class="hist-btns">
+                <button id="btn-undo" class="hist-btn">↩ Undo</button>
+                <button id="btn-redo" class="hist-btn">↪ Redo</button>
+              </div>
+              <button id="btn-clear" class="hist-btn hist-danger">🗑 Clear All</button>
+            </div>
+
+            <div class="ctrl-divider"></div>
+
+            <div class="ctrl-group">
+              <label class="ctrl-label">Pages <span id="page-ind" class="page-ind">1/1</span></label>
+              <div class="page-nav">
+                <button id="btn-prev" class="page-btn">‹ Prev</button>
+                <button id="btn-next" class="page-btn">Next ›</button>
+              </div>
+            </div>
+
+            <button id="sign-btn" class="btn-sign">✍ Sign PDF</button>
+          </div>
+
+          <!-- Canvas -->
+          <div class="canvas-area">
+            <p class="canvas-tip">💡 Click to place · Drag to reposition · <span id="place-badge"></span></p>
+            <div class="canvas-wrap">
+              <canvas id="pdf-canvas"></canvas>
+              <canvas id="sig-overlay"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── STEP 3 ── -->
+      <div id="step-3" class="card success-section" style="display:none">
+        <div class="success-emoji">🎉</div>
+        <h2 class="success-title">Signed!</h2>
+        <p class="success-sub">Your PDF has been signed successfully.</p>
+        <button id="download-btn" class="btn-download">⬇ Download Signed PDF</button>
+        <button id="btn-restart"  class="btn-again">Sign another document</button>
+      </div>
+
+    </div><!-- /app-body -->
+  </div>
+</div><!-- /app -->
+
+<script>
+/* ───────────────────────────────────────────────────
+   CONFIG
+─────────────────────────────────────────────────── */
+const API = 'http://localhost:8000/api/v1';
+const MAX_PDF = 15 * 1024 * 1024;
+const MAX_IMG =  5 * 1024 * 1024;
+
+/* ───────────────────────────────────────────────────
+   PROFILES (localStorage)
+─────────────────────────────────────────────────── */
+const Profiles = {
+  KEY: 'pdfsign_profiles',
+  getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
+  save(arr) { localStorage.setItem(this.KEY, JSON.stringify(arr)); },
+  add({ name, title, color, pin }) {
+    const all = this.getAll();
+    const p = { id: Date.now().toString(), name, title, color, pin };
+    all.push(p); this.save(all); return p;
+  },
+  verify(id, pin) {
+    const p = this.getAll().find(x => x.id === id);
+    return p && p.pin === pin ? p : null;
+  }
+};
+
+/* ───────────────────────────────────────────────────
+   PROFILE SCREEN
+─────────────────────────────────────────────────── */
+let currentProfile = null;
+let pinBuffer = '';
+let pinTargetId = null;
+let selectedAvatarColor = '#6366f1';
+
+function initProfileScreen() {
+  renderProfileList();
+
+  // Avatar color picker
+  document.querySelectorAll('.av-color').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.av-color').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedAvatarColor = btn.dataset.c;
+    });
+  });
+
+  // PIN pad
+  document.querySelectorAll('.pp-btn').forEach(btn => {
+    btn.addEventListener('click', () => handlePinInput(btn.dataset.d));
+  });
+
+  // New profile
+  document.getElementById('btn-new-profile').addEventListener('click', () => showPsView('v-new'));
+  document.getElementById('btn-cancel-np').addEventListener('click', () => showPsView('v-select'));
+  document.getElementById('btn-save-np').addEventListener('click', saveNewProfile);
+}
+
+function showPsView(id) {
+  ['v-select','v-pin','v-new'].forEach(v => {
+    document.getElementById(v).style.display = v === id ? '' : 'none';
+  });
+}
+
+function renderProfileList() {
+  const list = document.getElementById('profile-list');
+  const profiles = Profiles.getAll();
+  list.innerHTML = '';
+  if (profiles.length === 0) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--s400);text-align:center;padding:12px 0">No profiles yet. Create one below.</p>';
+    return;
+  }
+  profiles.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'profile-item';
+    el.innerHTML = `
+      <div class="prof-av" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
+      <div><div class="prof-name">${p.name}</div><div class="prof-role">${p.title}</div></div>
+      <span class="prof-arrow">›</span>`;
+    el.addEventListener('click', () => openPin(p));
+    list.appendChild(el);
+  });
+}
+
+function openPin(profile) {
+  pinBuffer = '';
+  pinTargetId = profile.id;
+  document.getElementById('pin-av').style.background = profile.color;
+  document.getElementById('pin-av').textContent = profile.name[0].toUpperCase();
+  document.getElementById('pin-uname').textContent = profile.name;
+  document.getElementById('pin-err').style.display = 'none';
+  updatePinDots();
+  showPsView('v-pin');
+}
+
+function handlePinInput(d) {
+  if (d === 'back') { showPsView('v-select'); return; }
+  if (d === 'del') { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); return; }
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updatePinDots();
+  if (pinBuffer.length === 4) verifyPin();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('pd-' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function verifyPin() {
+  const prof = Profiles.verify(pinTargetId, pinBuffer);
+  if (prof) {
+    currentProfile = prof;
+    launchApp(prof);
+  } else {
+    document.getElementById('pin-err').style.display = 'block';
+    pinBuffer = '';
+    updatePinDots();
+  }
+}
+
+function saveNewProfile() {
+  const name  = document.getElementById('np-name').value.trim();
+  const title = document.getElementById('np-title').value.trim();
+  const pin   = document.getElementById('np-pin').value.trim();
+  const err   = document.getElementById('np-err');
+  if (!name)             { err.textContent = 'Name is required.'; err.style.display='block'; return; }
+  if (!title)            { err.textContent = 'Title is required.'; err.style.display='block'; return; }
+  if (!/^\d{4}$/.test(pin)) { err.textContent = 'PIN must be exactly 4 digits.'; err.style.display='block'; return; }
+  err.style.display = 'none';
+  const p = Profiles.add({ name, title, color: selectedAvatarColor, pin });
+  document.getElementById('np-name').value = '';
+  document.getElementById('np-title').value = '';
+  document.getElementById('np-pin').value = '';
+  renderProfileList();
+  showPsView('v-select');
+}
+
+function launchApp(profile) {
+  document.getElementById('ps').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // Fill sidebar user info
+  document.getElementById('sb-av').style.background = profile.color;
+  document.getElementById('sb-av').textContent = profile.name[0].toUpperCase();
+  document.getElementById('sb-name').textContent = profile.name;
+  document.getElementById('sb-role').textContent = profile.title;
+  // Build sticker grid (needs profile for name+title sticker)
+  buildStickerGrid();
+  renderSignedDocs();
+  initDrawCanvas();
+}
+
+/* ───────────────────────────────────────────────────
+   PDF CACHE  (IndexedDB – survives server restarts)
+─────────────────────────────────────────────────── */
+const PdfCache = {
+  DB: 'pdfsign_cache', VER: 1, STORE: 'signed_pdfs',
+
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open(this.DB, this.VER);
+      r.onupgradeneeded = e => e.target.result.createObjectStore(this.STORE, { keyPath:'taskId' });
+      r.onsuccess  = e => res(e.target.result);
+      r.onerror    = e => rej(e.target.error);
+    });
+  },
+
+  async save(taskId, blob) {
+    const buf = await blob.arrayBuffer();
+    const db  = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(this.STORE, 'readwrite');
+      tx.objectStore(this.STORE).put({ taskId, buf, ts: Date.now() });
+      tx.oncomplete = res;
+      tx.onerror    = e => rej(e.target.error);
+    });
+  },
+
+  async get(taskId) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const r = db.transaction(this.STORE, 'readonly').objectStore(this.STORE).get(taskId);
+      r.onsuccess = e => {
+        const entry = e.target.result;
+        if (!entry) { res(null); return; }
+        res(new Blob([entry.buf], { type: 'application/pdf' }));
+      };
+      r.onerror = e => rej(e.target.error);
+    });
+  },
+};
+
+/* ───────────────────────────────────────────────────
+   SIGNED DOCUMENTS HISTORY
+─────────────────────────────────────────────────── */
+const SignedDocs = {
+  KEY: 'pdfsign_history',
+  getAll()           { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
+  _write(arr)        { localStorage.setItem(this.KEY, JSON.stringify(arr)); },
+  add(name, taskId)  {
+    const all = this.getAll();
+    all.unshift({
+      name, taskId,
+      date: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+      ts: Date.now(),
+    });
+    if (all.length > 30) all.pop();
+    this._write(all);
+  },
+  remove(ts) {
+    this._write(this.getAll().filter(d => d.ts !== ts));
+  },
+};
+
+function renderSignedDocs() {
+  const el   = $('sb-signed-list');
+  const docs = SignedDocs.getAll();
+  if (!docs.length) {
+    el.innerHTML = '<p class="sb-signed-empty">No documents yet</p>';
+    return;
+  }
+  el.innerHTML = docs.slice(0, 6).map(d => {
+    const safeName = d.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `
+    <div class="sb-signed-item" title="Download" onclick="downloadSigned('${d.taskId}','${safeName}')">
+      <span class="sb-signed-icon">📄</span>
+      <div style="flex:1;min-width:0">
+        <div class="sb-signed-name" title="${d.name}">${d.name}</div>
+        <div class="sb-signed-date">${d.date}</div>
+      </div>
+      <span style="font-size:11px;color:var(--s400);flex-shrink:0;margin-right:2px">⬇</span>
+      <button class="sb-signed-del" title="Remove" onclick="event.stopPropagation();removeSigned(${d.ts})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function removeSigned(ts) {
+  SignedDocs.remove(ts);
+  renderSignedDocs();
+}
+
+async function downloadSigned(taskId, filename) {
+  if (!taskId) { showErr('Task ID not found.'); return; }
+
+  function triggerDownload(blob) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = 'signed_' + filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  try {
+    // 1 – IndexedDB cache (survives server restarts)
+    const cached = await PdfCache.get(taskId);
+    if (cached) { triggerDownload(cached); return; }
+
+    // 2 – fall back to server
+    const res = await fetch(`${API}/pdf/download/${taskId}`);
+    if (!res.ok) {
+      SignedDocs.remove(taskId);
+      renderSignedDocs();
+      showErr(`"${filename}" is no longer available (server restarted). It has been removed from history.`);
+      return;
+    }
+    const blob = await res.blob();
+    await PdfCache.save(taskId, blob).catch(() => {});
+    triggerDownload(blob);
+  } catch(e) { showErr('Download failed: ' + e.message); }
+}
+
+/* ───────────────────────────────────────────────────
+   THEME
+─────────────────────────────────────────────────── */
+function toggleTheme() {
+  const root = document.documentElement;
+  const dark = root.getAttribute('data-theme') === 'dark';
+  root.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('btn-theme').textContent = dark ? '🌙 Dark Mode' : '☀️ Light Mode';
+}
+document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+
+/* ───────────────────────────────────────────────────
+   BRAND LOGO – Back to Step 1
+─────────────────────────────────────────────────── */
+document.getElementById('sb-brand').addEventListener('click', () => {
+  resetAll();
+  setStep(1);
+});
+
+/* ───────────────────────────────────────────────────
+   LOGOUT
+─────────────────────────────────────────────────── */
+document.getElementById('btn-logout').addEventListener('click', () => {
+  currentProfile = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('ps').style.display = 'flex';
+  resetAll();
+  showPsView('v-select');
+});
+
+/* ───────────────────────────────────────────────────
+   STICKERS
+─────────────────────────────────────────────────── */
+const STICKERS = [
+  { id:'approved',  emoji:'✅', label:'Approved',     cat:'stamp', color:'#16a34a' },
+  { id:'signed',    emoji:'📝', label:'Signed',       cat:'stamp', color:'#1d4ed8' },
+  { id:'reviewed',  emoji:'👁',  label:'Reviewed',     cat:'stamp', color:'#7c3aed' },
+  { id:'confidential',emoji:'🔒',label:'Confidential',cat:'stamp', color:'#dc2626' },
+  { id:'draft',     emoji:'📋', label:'Draft',        cat:'stamp', color:'#d97706' },
+  { id:'urgent',    emoji:'🚨', label:'Urgent',       cat:'stamp', color:'#ef4444' },
+  { id:'date',      emoji:'📅', label:'Date Stamp',   cat:'text',  color:'#475569' },
+  { id:'namecard',  emoji:'🤝', label:'Name + Title', cat:'text',  color:'#0f172a' },
+];
+
+let selectedStickerId = null;
+let activeFilter = 'all';
+
+function buildStickerGrid() {
+  const grid = document.getElementById('sticker-grid');
+  grid.innerHTML = '';
+  const filtered = STICKERS.filter(s => activeFilter === 'all' || s.cat === activeFilter);
+  filtered.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'sk-btn' + (s.id === selectedStickerId ? ' selected' : '');
+    btn.dataset.id = s.id;
+    btn.innerHTML = `<span class="sk-emoji">${s.emoji}</span><span class="sk-label">${s.label}</span>`;
+    btn.addEventListener('click', () => selectSticker(s.id));
+    grid.appendChild(btn);
+  });
+}
+
+function selectSticker(id) {
+  selectedStickerId = id;
+  document.querySelectorAll('.sk-btn').forEach(b =>
+    b.classList.toggle('selected', b.dataset.id === id));
+  updateStickerPreview();
+  refreshOverlay();
+}
+
+function updateStickerPreview() {
+  if (!selectedStickerId) return;
+  const previewEl = document.getElementById('selected-preview');
+  const c = document.getElementById('prev-canvas');
+  drawSticker(c, selectedStickerId, sigColor, sigFont);
+  previewEl.style.display = 'flex';
+}
+
+function drawSticker(canvas, id, color, font) {
+  const def = STICKERS.find(s => s.id === id);
+  if (!def) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const c = color || def.color;
+  ctx.clearRect(0, 0, w, h);
+
+  // white bg
+  ctx.fillStyle = 'rgba(255,255,255,0.97)';
+  rrect(ctx, 2, 2, w-4, h-4, 10); ctx.fill();
+  // border
+  ctx.strokeStyle = c; ctx.lineWidth = 2.5;
+  rrect(ctx, 2, 2, w-4, h-4, 10); ctx.stroke();
+
+  if (id === 'date') {
+    const today = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    ctx.fillStyle = c;
+    ctx.font = `11px ${font || 'DM Sans'}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('DATE', w/2, h/2 - 12);
+    ctx.font = `bold 15px ${font || 'DM Sans'}`;
+    ctx.fillText(today, w/2, h/2 + 8);
+  } else if (id === 'namecard') {
+    const name  = currentProfile?.name  || 'Your Name';
+    const title = currentProfile?.title || 'Your Title';
+    ctx.fillStyle = c;
+    ctx.font = `bold 14px ${font || 'DM Sans'}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(name, w/2, h/2 - 10);
+    ctx.font = `11px ${font || 'DM Sans'}`;
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(title, w/2, h/2 + 10);
+    // underline
+    ctx.strokeStyle = c; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(w*0.15, h/2+20); ctx.lineTo(w*0.85, h/2+20); ctx.stroke();
+  } else {
+    ctx.font = `22px serif`; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(def.emoji, 14, h/2);
+    ctx.font = `bold 15px ${font || 'DM Sans'}`;
+    ctx.fillStyle = c; ctx.textAlign='left';
+    ctx.fillText(def.label.toUpperCase(), 46, h/2);
+  }
+}
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.f;
+    buildStickerGrid();
+  });
+});
+
+// Method tabs
+document.getElementById('tab-sticker').addEventListener('click', () => setMethodTab('sticker'));
+document.getElementById('tab-custom').addEventListener('click',  () => setMethodTab('custom'));
+document.getElementById('tab-draw').addEventListener('click',    () => setMethodTab('draw'));
+
+function setMethodTab(mode) {
+  sigMode = mode;
+  ['sticker','custom','draw'].forEach(m => {
+    $('tab-'   + m).classList.toggle('active', mode === m);
+    $('panel-' + m).style.display = mode === m ? '' : 'none';
+  });
+  // font only for stickers; color for stickers + draw
+  $('ctrl-font').style.display  = mode === 'sticker' ? '' : 'none';
+  $('ctrl-color').style.display = (mode === 'sticker' || mode === 'draw') ? '' : 'none';
+}
+
+/* ───────────────────────────────────────────────────
+   MAIN APP STATE
+─────────────────────────────────────────────────── */
+const state = {
+  pdfFile: null, sigFile: null, taskId: null,
+  pages: [], currentPage: 0, pdfDoc: null,
+  placement: null,
+  history: [], histIdx: -1,
+  isDragging: false, dragOffX: 0, dragOffY: 0,
+};
+let sigMode   = 'sticker';
+let sigW      = 220;
+let sigH      = 78;
+let sigFont   = 'Dancing Script';
+let sigColor  = '#1e293b';
+
+const $ = id => document.getElementById(id);
+
+/* ───────────────────────────────────────────────────
+   VALIDATION
+─────────────────────────────────────────────────── */
+function validatePdf(f) {
+  if (!f) return 'Please select a PDF file.';
+  if (f.type !== 'application/pdf') return 'Only PDF files are accepted.';
+  if (f.size > MAX_PDF) return `PDF exceeds 15 MB (${(f.size/1024/1024).toFixed(1)} MB).`;
+  return null;
+}
+function validateImg(f) {
+  if (!f) return 'Please select a signature image.';
+  if (!['image/png','image/jpeg'].includes(f.type)) return 'Only PNG or JPEG images are accepted.';
+  if (f.size > MAX_IMG) return `Image exceeds 5 MB (${(f.size/1024/1024).toFixed(1)} MB).`;
+  return null;
+}
+
+/* ───────────────────────────────────────────────────
+   HELPERS
+─────────────────────────────────────────────────── */
+function showErr(msg) {
+  const b = $('err-banner');
+  b.textContent = msg; b.style.display = 'block';
+  setTimeout(() => b.style.display = 'none', 6000);
+}
+
+function setLoading(btn, on, label) {
+  btn.disabled = on;
+  if (on) { btn._orig = btn.innerHTML; btn.innerHTML = `<div class="spinner"></div> ${label}`; }
+  else     { btn.innerHTML = btn._orig || btn.innerHTML; }
+}
+
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el = $('si-' + i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+  $('step-1').style.display = n === 1 ? '' : 'none';
+  $('step-2').style.display = n === 2 ? '' : 'none';
+  $('step-3').style.display = n === 3 ? '' : 'none';
+}
+
+/* ───────────────────────────────────────────────────
+   DROPZONES
+─────────────────────────────────────────────────── */
+function setupDz(dz, input, onFile) {
+  dz.addEventListener('click', () => input.click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+  });
+  dz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') input.click(); });
+  input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); });
+}
+
+function onPdf(f) {
+  const err = validatePdf(f); if (err) { showErr(err); return; }
+  state.pdfFile = f;
+  $('pdf-dz').classList.add('has-file');
+  $('pdf-fname').textContent = '✓ ' + f.name;
+}
+function onSig(f) {
+  const err = validateImg(f); if (err) { showErr(err); return; }
+  state.sigFile = f;
+  $('sig-dz').classList.add('has-file');
+  $('sig-fname').textContent = '✓ ' + f.name;
+}
+
+setupDz($('pdf-dz'), $('pdf-input'), onPdf);
+setupDz($('sig-dz'), $('sig-input'), onSig);
+
+/* ───────────────────────────────────────────────────
+   UPLOAD
+─────────────────────────────────────────────────── */
+$('upload-btn').addEventListener('click', async () => {
+  if (!state.pdfFile) { showErr('Please select a PDF file first.'); return; }
+  if (sigMode === 'sticker' && !selectedStickerId) { showErr('Please select a sticker first.'); return; }
+  if (sigMode === 'custom'  && !state.sigFile)      { showErr('Please select a signature image first.'); return; }
+
+  const btn = $('upload-btn');
+  setLoading(btn, true, 'Uploading…');
+  try {
+    const fd = new FormData();
+    fd.append('file', state.pdfFile);
+    const res = await fetch(`${API}/pdf/upload`, { method:'POST', body:fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || `HTTP ${res.status}`); }
+    const data = await res.json();
+    state.taskId = data.task_id;
+    state.pages  = data.pages;
+    state.currentPage = 0;
+    state.history = []; state.histIdx = -1;
+    setStep(2);
+    updateCtrlVisibility();
+    await renderPage(0);
+  } catch(e) { showErr(e.message); }
+  finally    { setLoading(btn, false); }
+});
+
+/* ───────────────────────────────────────────────────
+   PDF RENDERING
+─────────────────────────────────────────────────── */
+async function renderPage(idx) {
+  const lib = window['pdfjs-dist/build/pdf'];
+  lib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  if (!state.pdfDoc) {
+    const buf = await state.pdfFile.arrayBuffer();
+    state.pdfDoc = await lib.getDocument({ data: buf }).promise;
+  }
+
+  const page     = await state.pdfDoc.getPage(idx + 1);
+  const maxW     = $('pdf-canvas').parentElement.clientWidth || 700;
+  const scale    = Math.min(1.6, maxW / page.getViewport({scale:1}).width);
+  const viewport = page.getViewport({ scale: Math.max(scale, 0.8) });
+
+  const pdfC = $('pdf-canvas');
+  const ovC  = $('sig-overlay');
+  pdfC.width = ovC.width  = viewport.width;
+  pdfC.height = ovC.height = viewport.height;
+
+  await page.render({ canvasContext: pdfC.getContext('2d'), viewport }).promise;
+
+  state.placement = null;
+  updatePageControls();
+  refreshOverlay();
+}
+
+function updatePageControls() {
+  const total = state.pages.length;
+  $('page-ind').textContent = `${state.currentPage + 1}/${total}`;
+  $('btn-prev').disabled = state.currentPage === 0;
+  $('btn-next').disabled = state.currentPage >= total - 1;
+}
+
+$('btn-prev').addEventListener('click', () => changePage(-1));
+$('btn-next').addEventListener('click', () => changePage(1));
+
+async function changePage(d) {
+  const np = state.currentPage + d;
+  if (np < 0 || np >= state.pages.length) return;
+  state.currentPage = np;
+  state.placement = null;
+  await renderPage(np);
+}
+
+/* ───────────────────────────────────────────────────
+   CANVAS INTERACTION – click + drag + undo/redo
+─────────────────────────────────────────────────── */
+const ovC = $('sig-overlay');
+
+function getCanvasXY(e) {
+  const rect = ovC.getBoundingClientRect();
+  const scaleX = ovC.width  / rect.width;
+  const scaleY = ovC.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+function isInPlacement(px, py) {
+  if (!state.placement) return false;
+  const { x_px, y_px } = state.placement;
+  return px >= x_px && px <= x_px + sigW && py >= y_px && py <= y_px + sigH;
+}
+
+function toPt(px, py) {
+  const pg = state.pages[state.currentPage];
+  const pdfC = $('pdf-canvas');
+  return {
+    x: px * (pg.width  / pdfC.width),
+    y: py * (pg.height / pdfC.height),
+    w: sigW * (pg.width  / pdfC.width),
+    h: sigH * (pg.height / pdfC.height),
+  };
+}
+
+function setPlacement(x_px, y_px) {
+  const pt = toPt(x_px, y_px);
+  state.placement = { x_px, y_px, x_pt: pt.x, y_pt: pt.y, w_pt: pt.w, h_pt: pt.h };
+  pushHistory();
+  updatePlaceBadge();
+  refreshOverlay();
+}
+
+function updatePlaceBadge() {
+  const el = $('place-badge');
+  if (state.placement) {
+    el.innerHTML = `<span class="placement-badge"><span class="pbadge-dot"></span>Placed on page ${state.currentPage+1}</span>`;
+  } else { el.innerHTML = ''; }
+}
+
+// mousedown – start drag or place
+ovC.addEventListener('mousedown', e => {
+  const { x, y } = getCanvasXY(e);
+  if (isInPlacement(x, y)) {
+    state.isDragging = true;
+    state.dragOffX = x - state.placement.x_px;
+    state.dragOffY = y - state.placement.y_px;
+    ovC.classList.add('dragging');
+    ovC.style.cursor = 'grabbing';
+  }
+});
+
+ovC.addEventListener('mousemove', e => {
+  if (!state.isDragging || !state.placement) return;
+  const { x, y } = getCanvasXY(e);
+  const nx = x - state.dragOffX;
+  const ny = y - state.dragOffY;
+  const pt = toPt(nx, ny);
+  state.placement = { x_px: nx, y_px: ny, x_pt: pt.x, y_pt: pt.y, w_pt: pt.w, h_pt: pt.h };
+  refreshOverlay();
+});
+
+ovC.addEventListener('mouseup', e => {
+  if (state.isDragging) {
+    state.isDragging = false;
+    ovC.classList.remove('dragging');
+    ovC.style.cursor = 'crosshair';
+    pushHistory();
+    updatePlaceBadge();
+  }
+});
+
+ovC.addEventListener('click', e => {
+  if (state.isDragging) return;
+  const { x, y } = getCanvasXY(e);
+  if (!isInPlacement(x, y)) setPlacement(x, y);
+});
+
+// touch support
+ovC.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const { x, y } = getCanvasXY(e);
+  if (isInPlacement(x, y)) {
+    state.isDragging = true;
+    state.dragOffX = x - state.placement.x_px;
+    state.dragOffY = y - state.placement.y_px;
+  } else { setPlacement(x, y); }
+}, { passive: false });
+
+ovC.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!state.isDragging || !state.placement) return;
+  const { x, y } = getCanvasXY(e);
+  const nx = x - state.dragOffX, ny = y - state.dragOffY;
+  const pt = toPt(nx, ny);
+  state.placement = { x_px: nx, y_px: ny, x_pt: pt.x, y_pt: pt.y, w_pt: pt.w, h_pt: pt.h };
+  refreshOverlay();
+}, { passive: false });
+
+ovC.addEventListener('touchend', e => {
+  if (state.isDragging) { state.isDragging = false; pushHistory(); updatePlaceBadge(); }
+});
+
+/* ───────────────────────────────────────────────────
+   UNDO / REDO
+─────────────────────────────────────────────────── */
+function pushHistory() {
+  state.history = state.history.slice(0, state.histIdx + 1);
+  state.history.push(state.placement ? { ...state.placement } : null);
+  state.histIdx = state.history.length - 1;
+}
+
+$('btn-undo').addEventListener('click', () => {
+  if (state.histIdx <= 0) return;
+  state.histIdx--;
+  state.placement = state.history[state.histIdx] ? { ...state.history[state.histIdx] } : null;
+  updatePlaceBadge(); refreshOverlay();
+});
+
+$('btn-redo').addEventListener('click', () => {
+  if (state.histIdx >= state.history.length - 1) return;
+  state.histIdx++;
+  state.placement = state.history[state.histIdx] ? { ...state.history[state.histIdx] } : null;
+  updatePlaceBadge(); refreshOverlay();
+});
+
+$('btn-clear').addEventListener('click', () => {
+  state.placement = null; pushHistory(); updatePlaceBadge(); refreshOverlay();
+});
+
+/* ───────────────────────────────────────────────────
+   OVERLAY RENDER
+─────────────────────────────────────────────────── */
+function refreshOverlay() {
+  const ctx = ovC.getContext('2d');
+  ctx.clearRect(0, 0, ovC.width, ovC.height);
+
+  if (!state.placement) {
+    ctx.fillStyle = 'rgba(245,158,11,0.05)';
+    ctx.fillRect(0, 0, ovC.width, ovC.height);
+    ctx.fillStyle = 'rgba(245,158,11,0.6)';
+    ctx.font = '13px DM Sans, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Click to place your signature', ovC.width / 2, ovC.height / 2);
+    return;
+  }
+
+  const { x_px, y_px } = state.placement;
+
+  if (sigMode === 'sticker' && selectedStickerId) {
+    const tmpC = document.createElement('canvas');
+    tmpC.width = 260; tmpC.height = 90;
+    drawSticker(tmpC, selectedStickerId, sigColor, sigFont);
+    ctx.drawImage(tmpC, x_px, y_px, sigW, sigH);
+  } else if (sigMode === 'custom' && state.sigFile) {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, ovC.width, ovC.height);
+      ctx.drawImage(img, x_px, y_px, sigW, sigH);
+      drawSelectionBox(ctx, x_px, y_px);
+    };
+    img.src = URL.createObjectURL(state.sigFile);
+    return;
+  } else if (sigMode === 'draw') {
+    ctx.drawImage($('draw-canvas'), x_px, y_px, sigW, sigH);
+    drawSelectionBox(ctx, x_px, y_px);
+  }
+}
+
+function drawSelectionBox(ctx, x, y) {
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5,3]);
+  ctx.strokeRect(x, y, sigW, sigH);
+  ctx.setLineDash([]);
+  // resize handle
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(x + sigW - 7, y + sigH - 7, 7, 7);
+}
+
+/* ───────────────────────────────────────────────────
+   CONTROLS – font, color, size
+─────────────────────────────────────────────────── */
+function updateCtrlVisibility() {
+  const isText = sigMode === 'sticker' && (selectedStickerId === 'date' || selectedStickerId === 'namecard');
+  $('ctrl-font').style.opacity  = isText ? '1' : '.45';
+  $('ctrl-color').style.opacity = (sigMode === 'sticker' || sigMode === 'draw') ? '1' : '.45';
+}
+
+function onColorClick(btn) {
+  document.querySelectorAll('.c-dot').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  sigColor = btn.dataset.c;
+  forceRedraw();
+}
+
+function onFontChange(val) {
+  sigFont = val;
+  forceRedraw();
+}
+
+function forceRedraw() {
+  const ov  = document.getElementById('sig-overlay');
+  const ctx = ov.getContext('2d');
+  ctx.clearRect(0, 0, ov.width, ov.height);
+  if (selectedStickerId) updateStickerPreview();
+  refreshOverlay();
+}
+
+$('sig-size').addEventListener('input', e => {
+  sigW = parseInt(e.target.value);
+  sigH = Math.round(sigW * 0.355);
+  $('size-val').textContent = sigW;
+  if (state.placement) {
+    const pt = toPt(state.placement.x_px, state.placement.y_px);
+    state.placement.w_pt = pt.w;
+    state.placement.h_pt = pt.h;
+  }
+  refreshOverlay();
+});
+
+/* ───────────────────────────────────────────────────
+   SIGN
+─────────────────────────────────────────────────── */
+$('sign-btn').addEventListener('click', async () => {
+  if (!state.placement) { showErr('Please click on the document to place your signature first.'); return; }
+
+  let imgFile = state.sigFile;
+
+  if (sigMode === 'sticker' && selectedStickerId) {
+    const tmpC = document.createElement('canvas');
+    tmpC.width = 260; tmpC.height = 90;
+    drawSticker(tmpC, selectedStickerId, sigColor, sigFont);
+    imgFile = await new Promise(res =>
+      tmpC.toBlob(b => res(new File([b], 'sticker.png', { type:'image/png' })))
+    );
+  } else if (sigMode === 'draw') {
+    if (drawCanvasIsEmpty()) { showErr('Please draw your signature first.'); return; }
+    const dc = $('draw-canvas');
+    imgFile = await new Promise(res =>
+      dc.toBlob(b => res(new File([b], 'draw_sig.png', { type:'image/png' })))
+    );
+  }
+
+  const btn = $('sign-btn');
+  setLoading(btn, true, 'Signing…');
+  try {
+    const fd = new FormData();
+    fd.append('task_id', state.taskId);
+    fd.append('page',    state.currentPage);
+    fd.append('x',       state.placement.x_pt);
+    fd.append('y',       state.placement.y_pt);
+    fd.append('w',       state.placement.w_pt);
+    fd.append('h',       state.placement.h_pt);
+    fd.append('image',   imgFile, imgFile.name || 'signature.png');
+    const res = await fetch(`${API}/pdf/sign`, { method:'POST', body:fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail||`HTTP ${res.status}`); }
+
+    SignedDocs.add(state.pdfFile?.name || 'document.pdf', state.taskId);
+    renderSignedDocs();
+    setStep(3);
+  } catch(e) { showErr(e.message); }
+  finally    { setLoading(btn, false); }
+});
+
+/* ───────────────────────────────────────────────────
+   DOWNLOAD
+─────────────────────────────────────────────────── */
+$('download-btn').addEventListener('click', async () => {
+  const btn = $('download-btn');
+  setLoading(btn, true, 'Preparing…');
+  try {
+    const res = await fetch(`${API}/pdf/download/${state.taskId}`);
+    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    const blob = await res.blob();
+
+    await PdfCache.save(state.taskId, blob).catch(e => console.warn('cache err:', e));
+
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = 'signed.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showErr(e.message); }
+  finally    { setLoading(btn, false); }
+});
+
+/* ───────────────────────────────────────────────────
+   RESTART
+─────────────────────────────────────────────────── */
+function resetAll() {
+  Object.assign(state, { pdfFile:null, sigFile:null, taskId:null, pages:[],
+    currentPage:0, pdfDoc:null, placement:null, history:[], histIdx:-1,
+    isDragging:false });
+  selectedStickerId = null;
+  sigMode = 'sticker'; sigW = 220; sigH = 78;
+  $('pdf-dz').classList.remove('has-file');
+  $('sig-dz').classList.remove('has-file');
+  $('pdf-fname').textContent = '';
+  $('sig-fname').textContent = '';
+  $('selected-preview').style.display = 'none';
+  $('place-badge').innerHTML = '';
+  clearDrawCanvas();
+  buildStickerGrid();
+  setMethodTab('sticker');
+}
+
+$('btn-restart').addEventListener('click', () => { resetAll(); setStep(1); });
+
+/* ───────────────────────────────────────────────────
+   DRAW SIGNATURE
+─────────────────────────────────────────────────── */
+let drawIsDown = false;
+let penSize    = 3;
+
+function initDrawCanvas() {
+  const dc = $('draw-canvas');
+  if (!dc) return;
+
+  // ── colour buttons ──
+  $('draw-color-row').addEventListener('click', e => {
+    const btn = e.target.closest('.draw-c-dot');
+    if (!btn) return;
+    document.querySelectorAll('.draw-c-dot').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+
+  // ── size slider ──
+  $('pen-size').addEventListener('input', e => {
+    penSize = parseInt(e.target.value);
+    $('pen-val').textContent = penSize;
+  });
+
+  $('btn-clear-draw').addEventListener('click', clearDrawCanvas);
+
+  function activeColor() {
+    const btn = document.querySelector('#draw-color-row .draw-c-dot.active');
+    return btn ? btn.getAttribute('data-c') : '#1e293b';
+  }
+
+  function getXY(e) {
+    const r  = dc.getBoundingClientRect();
+    return {
+      x: ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) * (dc.width  / r.width),
+      y: ((e.touches ? e.touches[0].clientY : e.clientY) - r.top)  * (dc.height / r.height),
+    };
+  }
+
+  function applyStroke(ctx) {
+    const r = dc.getBoundingClientRect();
+    ctx.strokeStyle = activeColor();
+    ctx.lineWidth   = penSize * (r.width > 0 ? dc.width / r.width : 1);
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+
+  // ── mouse ──
+  dc.addEventListener('mousedown', e => {
+    drawIsDown = true;
+    const ctx = dc.getContext('2d');
+    applyStroke(ctx);
+    const p = getXY(e);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  });
+  dc.addEventListener('mousemove', e => {
+    if (!drawIsDown) return;
+    const ctx = dc.getContext('2d');
+    applyStroke(ctx);
+    const p = getXY(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  });
+  dc.addEventListener('mouseup',    () => { drawIsDown = false; });
+  dc.addEventListener('mouseleave', () => { drawIsDown = false; });
+
+  // ── touch ──
+  dc.addEventListener('touchstart', e => {
+    e.preventDefault(); drawIsDown = true;
+    const ctx = dc.getContext('2d');
+    applyStroke(ctx);
+    const p = getXY(e);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }, { passive: false });
+  dc.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!drawIsDown) return;
+    const ctx = dc.getContext('2d');
+    applyStroke(ctx);
+    const p = getXY(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }, { passive: false });
+  dc.addEventListener('touchend', () => { drawIsDown = false; });
+}
+
+function clearDrawCanvas() {
+  const dc = $('draw-canvas');
+  dc.getContext('2d').clearRect(0, 0, dc.width, dc.height);
+}
+
+function drawCanvasIsEmpty() {
+  const dc = $('draw-canvas');
+  const data = dc.getContext('2d').getImageData(0, 0, dc.width, dc.height).data;
+  return !data.some(v => v !== 0);
+}
+
+/* ───────────────────────────────────────────────────
+   BOOT
+─────────────────────────────────────────────────── */
+initProfileScreen();
+</script>
+</body>
+</html>
