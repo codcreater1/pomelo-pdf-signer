@@ -1,12 +1,13 @@
 # --- 1. AŞAMA: Frontend'i derleme (Build Stage) ---
 FROM node:20-slim AS frontend-builder
 WORKDIR /frontend-build
-# Sadece frontend klasörünü içeri al
-COPY frontend/package*.json ./
-# Hata veren 'npm ci' yerine 'npm install' kullanıyoruz
-RUN npm install
-COPY frontend/ ./
-RUN npm run build
+
+# Tüm projeyi kopyalayalım ki frontend klasörü nerede olursa olsun bulabilsin
+COPY . .
+
+# Frontend klasörünün içine girip bağımlılıkları kuralım ve build edelim
+# (Klasör ismi büyük harfle başlasa bile otomatik eşleşir)
+RUN cd [fF]rontend && npm install && npm run build
 
 # --- 2. AŞAMA: Python ve FastAPI'yi ayağa kaldırma ---
 FROM python:3.12-slim
@@ -21,11 +22,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Backend kodlarını kopyala
+# Tüm backend kodlarını kopyala
 COPY . .
 
-# İlk aşamada üretilen dist klasörünü FastAPI'nin okuyacağı yere kopyala
-COPY --from=frontend-builder /frontend-build/dist ./frontend/dist
+# İlk aşamada oluşan dist klasörünü FastAPI'nin okuyacağı yere çekelim
+COPY --from=frontend-builder /frontend-build/frontend/dist ./frontend/dist
 
 EXPOSE 8000
 
