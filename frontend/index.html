@@ -737,9 +737,10 @@ function showPsView(id) {
   });
 }
 
-function renderProfileList() {
+async function renderProfileList() {
   const list = document.getElementById('profile-list');
-  const profiles = Profiles.getAll();
+  list.innerHTML = '<p style="font-size:13px;color:var(--s400);text-align:center;padding:12px 0">Loading...</p>';
+  const profiles = await Profiles.getAll();
   list.innerHTML = '';
   if (profiles.length === 0) {
     list.innerHTML = '<p style="font-size:13px;color:var(--s400);text-align:center;padding:12px 0">No profiles yet. Create one below.</p>';
