@@ -710,8 +710,7 @@ let pinTargetId = null;
 let selectedAvatarColor = '#6366f1';
 
 function initProfileScreen() {
-  renderProfileList();
-
+  renderProfileList().catch(console.error);
   // Avatar color picker
   document.querySelectorAll('.av-color').forEach(btn => {
     btn.addEventListener('click', () => {
