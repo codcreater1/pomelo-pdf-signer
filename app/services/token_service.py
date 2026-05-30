@@ -2,8 +2,7 @@ import hmac
 import hashlib
 import time
 from app.core.config import settings
-
-SECRET = settings.secret_key.encode()
+SECRET = settings.api_secret_key.encode()
 
 
 def create_download_token(task_id: str, ttl: int = 600) -> str:
