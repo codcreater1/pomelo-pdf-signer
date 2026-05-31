@@ -22,43 +22,35 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ------------------------------------------------------------------ #
     # Storage
-    # ------------------------------------------------------------------ #
     storage_root: Path = Field(
         default=Path(__file__).resolve().parent.parent.parent / "tmp",
         description="Root directory for per-task working directories.",
     )
 
-    # ------------------------------------------------------------------ #
     # Upload limits
-    # ------------------------------------------------------------------ #
     max_pdf_bytes: int = Field(
-        default=15 * 1024 * 1024,  # 15 MB
+        default=15 * 1024 * 1024,
         description="Maximum accepted PDF upload size in bytes.",
     )
 
     max_image_bytes: int = Field(
-        default=5 * 1024 * 1024,  # 5 MB
+        default=5 * 1024 * 1024,
         description="Maximum accepted signature image size in bytes.",
     )
 
     read_chunk_bytes: int = Field(
-        default=256 * 1024,  # 256 KB
+        default=256 * 1024,
         description="Chunk size for streaming uploads to disk.",
     )
 
-    # ------------------------------------------------------------------ #
     # Task lifecycle
-    # ------------------------------------------------------------------ #
     task_ttl_seconds: int = Field(
-        default=3600,  # 1 hour
+        default=3600,
         description="Age in seconds after which orphaned task dirs are purged at startup.",
     )
 
-    # ------------------------------------------------------------------ #
     # API surface
-    # ------------------------------------------------------------------ #
     api_prefix: str = Field(default="/api/v1")
 
     cors_origins: list[str] = Field(
@@ -69,18 +61,13 @@ class Settings(BaseSettings):
     app_title: str = "PDF Signature Service"
     app_version: str = "2.0.0"
 
-    # ------------------------------------------------------------------ #
     # Security
-    # ------------------------------------------------------------------ #
     api_secret_key: str = Field(
         default="",
         description="If non-empty, every request must include "
                     "'Authorization: Bearer <key>'.",
     )
 
-    # ------------------------------------------------------------------ #
-    # Validators
-    # ------------------------------------------------------------------ #
     @field_validator("storage_root", mode="before")
     @classmethod
     def _resolve_storage_root(cls, v: str | Path) -> Path:
@@ -106,5 +93,4 @@ class Settings(BaseSettings):
         return value
 
 
-# Module-level singleton — import this everywhere.
 settings = Settings()
