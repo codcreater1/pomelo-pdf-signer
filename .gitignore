@@ -13,3 +13,4 @@ tmp/*/
 .venv/
 .venv_win/
 venv/
+.idea/
